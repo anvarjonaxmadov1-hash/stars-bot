@@ -1,0 +1,226 @@
+import re
+
+from aiogram import Router, F, Bot
+from aiogram.types import (
+    CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton,
+    LabeledPrice, PreCheckoutQuery,
+)
+from aiogram.methods import GiftPremiumSubscription
+
+import database as db
+from locales import t
+from config import (
+    PREMIUM_PLANS, STARS_PACKAGES, PAYMENT_CARD_NUMBER, PAYMENT_CARD_OWNER,
+    ADMIN_IDS, CRYPTO_WALLET, CRYPTO_NETWORK, USD_TO_UZS,
+    FOREIGN_CARD_VISA, FOREIGN_CARD_MASTERCARD, FOREIGN_CARD_OWNER,
+)
+
+router = Router()
+
+# user_id -> order_id, screenshot kutilayotgan buyurtmalar uchun (oddiy xotira holati)
+PENDING_SCREENSHOT: dict[int, int] = {}
+
+
+def find_item(callback_data: str):
+    """buy_prem_xxx yoki buy_star_xxx dan mahsulotni topadi"""
+    if callback_data.startswith("buy_prem_"):
+        item_id = callback_data.replace("buy_prem_", "")
+        plan = next((p for p in PREMIUM_PLANS if p["id"] == item_id), None)
+        if plan:
+            return f"{plan['months']} oylik Premium", plan["price_som"]
+    elif callback_data.startswith("buy_star_"):
+        item_id = callback_data.replace("buy_star_", "")
+        pack = next((s for s in STARS_PACKAGES if s["id"] == item_id), None)
+        if pack:
+            return f"{pack['amount']} Stars", pack["price_som"]
+    return None, None
+
+
+@router.callback_query(F.data.startswith("buy_prem_") | F.data.startswith("buy_star_"))
+async def choose_payment_method(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
+    item_name, price = find_item(callback.data)
+    if not item_name:
+        await callback.answer("Xatolik / Error", show_alert=True)
+        return
+
+    # 1 oylik Premium'da Stars orqali avtomatik yetkazish yo'q (Telegram cheklovi),
+    # shuning uchun bu holatda "Stars orqali" tugmasi ko'rsatilmaydi
+    show_stars_button = True
+    if callback.data.startswith("buy_prem_"):
+        item_id = callback.data.replace("buy_prem_", "")
+        plan = next((p for p in PREMIUM_PLANS if p["id"] == item_id), None)
+        if plan and plan.get("price_stars_service") is None:
+            show_stars_button = False
+
+    buttons = [
+        [InlineKeyboardButton(text=t(lang, "pay_card"), callback_data=f"paycard_{callback.data}")],
+        [InlineKeyboardButton(text=t(lang, "pay_crypto"), callback_data=f"paycrypto_{callback.data}")],
+        [InlineKeyboardButton(text=t(lang, "pay_foreign_card"), callback_data=f"payforeign_{callback.data}")],
+    ]
+    if show_stars_button:
+        buttons.append([InlineKeyboardButton(text=t(lang, "pay_stars"), callback_data=f"paystars_{callback.data}")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    await callback.message.edit_text(t(lang, "choose_payment"), reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("paycard_"))
+async def pay_with_card(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
+    original = callback.data.replace("paycard_", "")
+    item_name, price = find_item(original)
+
+    order_id = await db.create_order(callback.from_user.id, item_name, price, "card")
+    PENDING_SCREENSHOT[callback.from_user.id] = order_id
+
+    await callback.message.edit_text(
+        t(lang, "order_created", order_id=order_id, price=f"{price:,}".replace(",", " "),
+          card=PAYMENT_CARD_NUMBER, owner=PAYMENT_CARD_OWNER)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("paycrypto_"))
+async def pay_with_crypto(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
+    original = callback.data.replace("paycrypto_", "")
+    item_name, price_som = find_item(original)
+
+    usd_amount = round(price_som / USD_TO_UZS, 2)
+
+    order_id = await db.create_order(callback.from_user.id, item_name, price_som, "crypto")
+    PENDING_SCREENSHOT[callback.from_user.id] = order_id
+
+    await callback.message.edit_text(
+        t(lang, "crypto_order_created", order_id=order_id, usd=usd_amount,
+          network=CRYPTO_NETWORK, wallet=CRYPTO_WALLET)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("payforeign_"))
+async def pay_with_foreign_card(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
+    original = callback.data.replace("payforeign_", "")
+    item_name, price_som = find_item(original)
+
+    usd_amount = round(price_som / USD_TO_UZS, 2)
+
+    order_id = await db.create_order(callback.from_user.id, item_name, price_som, "foreign_card")
+    PENDING_SCREENSHOT[callback.from_user.id] = order_id
+
+    await callback.message.edit_text(
+        t(lang, "foreign_card_order_created", order_id=order_id, usd=usd_amount,
+          visa=FOREIGN_CARD_VISA, mastercard=FOREIGN_CARD_MASTERCARD, owner=FOREIGN_CARD_OWNER)
+    )
+    await callback.answer()
+
+
+@router.message(F.photo)
+async def receive_screenshot(message: Message, bot: Bot):
+    user_id = message.from_user.id
+    if user_id not in PENDING_SCREENSHOT:
+        return  # kutilayotgan buyurtma yo'q, e'tiborsiz qoldiramiz
+
+    lang = await db.get_lang(user_id)
+    order_id = PENDING_SCREENSHOT.pop(user_id)
+    order = await db.get_order(order_id)
+    if not order:
+        return
+    _, _, item, price, method, _ = order
+
+    await message.answer(t(lang, "screenshot_received", order_id=order_id))
+
+    admin_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"approve_{order_id}"),
+            InlineKeyboardButton(text="❌ Rad etish", callback_data=f"reject_{order_id}"),
+        ]
+    ])
+    method_labels = {"crypto": "USDT", "foreign_card": "Visa/Mastercard"}
+    method_label = method_labels.get(method, "Karta")
+    caption = t(lang, "new_order_admin", order_id=order_id, username=message.from_user.username or "-",
+                user_id=user_id, item=item, price=f"{price:,}".replace(",", " "), method=method_label)
+    for admin_id in ADMIN_IDS:
+        await bot.send_photo(admin_id, message.photo[-1].file_id, caption=caption, reply_markup=admin_keyboard)
+
+
+@router.callback_query(F.data.startswith("paystars_"))
+async def pay_with_stars(callback: CallbackQuery, bot: Bot):
+    lang = await db.get_lang(callback.from_user.id)
+    original = callback.data.replace("paystars_", "")
+    item_name, price_som = find_item(original)
+
+    if original.startswith("buy_prem_"):
+        item_id = original.replace("buy_prem_", "")
+        plan = next((p for p in PREMIUM_PLANS if p["id"] == item_id), None)
+        stars_amount = plan["price_stars_service"] if plan else max(1, round(price_som / 200))
+    else:
+        stars_amount = max(1, round(price_som / 200))
+
+    order_id = await db.create_order(callback.from_user.id, item_name, price_som, "telegram_stars")
+
+    await bot.send_invoice(
+        chat_id=callback.from_user.id,
+        title=t(lang, "invoice_title", item=item_name),
+        description=t(lang, "invoice_desc", item=item_name),
+        payload=f"order_{order_id}",
+        currency="XTR",
+        prices=[LabeledPrice(label=item_name, amount=stars_amount)],
+    )
+    await callback.answer()
+
+
+@router.pre_checkout_query()
+async def pre_checkout(pre_checkout_query: PreCheckoutQuery, bot: Bot):
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+
+@router.message(F.successful_payment)
+async def successful_payment(message: Message, bot: Bot):
+    payload = message.successful_payment.invoice_payload
+    order_id = int(payload.replace("order_", ""))
+    await db.update_order_status(order_id, "paid")
+
+    lang = await db.get_lang(message.from_user.id)
+    await message.answer(t(lang, "payment_success", order_id=order_id))
+
+    order = await db.get_order(order_id)
+    if not order:
+        return
+    _, user_id, item, price, method, _ = order
+
+    # Agar bu Premium buyurtma bo'lsa va Stars orqali to'langan bo'lsa — avtomatik yetkazib beramiz
+    match = re.match(r"(\d+) oylik Premium", item)
+    if match and method == "telegram_stars":
+        months = int(match.group(1))
+        plan = next((p for p in PREMIUM_PLANS if p["months"] == months), None)
+        if plan:
+            try:
+                await bot(GiftPremiumSubscription(
+                    user_id=user_id,
+                    month_count=months,
+                    star_count=plan["gift_star_cost"],
+                ))
+                await db.update_order_status(order_id, "delivered")
+                await bot.send_message(user_id, t(lang, "premium_delivered", order_id=order_id))
+                return
+            except Exception as e:
+                for admin_id in ADMIN_IDS:
+                    await bot.send_message(
+                        admin_id,
+                        f"⚠️ Avtomatik yetkazishda xatolik #{order_id} (user {user_id}): {e}\n"
+                        f"Iltimos, qo'lda yetkazib bering.",
+                    )
+                return
+
+    # Aks holda (masalan Stars paketi sotib olingan) — adminga xabar, qo'lda yetkazib beriladi
+    for admin_id in ADMIN_IDS:
+        await bot.send_message(
+            admin_id,
+            t("uz", "new_order_admin", order_id=order_id, username=message.from_user.username or "-",
+              user_id=user_id, item=item, price=f"{price:,}".replace(",", " "), method="Telegram Stars"),
+)
