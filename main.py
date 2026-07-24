@@ -48,3 +48,8 @@ import os
 visa = os.getenv("FOREIGN_CARD_VISA")
 mastercard = os.getenv("FOREIGN_CARD_MASTERCARD")
 owner = os.getenv("FOREIGN_CARD_OWNER")
+import os
+
+visa = os.getenv("FOREIGN_CARD_VISA")
+mastercard = os.getenv("FOREIGN_CARD_MASTERCARD")
+owner = os.getenv("FOREIGN_CARD_OWNER")
