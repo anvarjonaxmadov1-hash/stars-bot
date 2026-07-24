@@ -28,16 +28,16 @@ DB_PATH = "bot.db"
 # buni o'zgartirib bo'lmaydi: 3 oy=1000, 6 oy=1500, 12 oy=2500)
 # price_stars_service — mijozdan Stars orqali to'lov olinganda so'raladigan narx (albatta gift_star_cost'dan yuqori bo'lishi kerak)
 PREMIUM_PLANS = [
-    {"id": "prem_1m", "months": 1, "price_som": 65000, "gift_star_cost": None, "price_stars_service": None},
-    {"id": "prem_3m", "months": 3, "price_som": 149000, "gift_star_cost": 1000, "price_stars_service": 1100},
+    {"id": "prem_1m", "months": 1, "price_som": 39999, "gift_star_cost": None, "price_stars_service": None},
+    {"id": "prem_3m", "months": 3, "price_som": 151899 "gift_star_cost": 1000, "price_stars_service": 1100},
     {"id": "prem_6m", "months": 6, "price_som": 249000, "gift_star_cost": 1500, "price_stars_service": 1650},
     {"id": "prem_12m", "months": 12, "price_som": 399000, "gift_star_cost": 2500, "price_stars_service": 2750},
 ]
 
 STARS_PACKAGES = [
-    {"id": "st_50", "amount": 50, "price_som": 19000},
-    {"id": "st_100", "amount": 100, "price_som": 36000},
-    {"id": "st_250", "amount": 250, "price_som": 85000},
-    {"id": "st_500", "amount": 500, "price_som": 165000},
-    {"id": "st_1000", "amount": 1000, "price_som": 320000},
+    {"id": "st_50", "amount": 50, "price_som": 15399},
+    {"id": "st_100", "amount": 100, "price_som": 36499},
+    {"id": "st_250", "amount": 250, "price_som": 65599},
+    {"id": "st_500", "amount": 500, "price_som": 125699},
+    {"id": "st_1000", "amount": 1000, "price_som": 245999},
 ]
