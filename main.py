@@ -43,3 +43,8 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+import os
+
+visa = os.getenv("FOREIGN_CARD_VISA")
+mastercard = os.getenv("FOREIGN_CARD_MASTERCARD")
+owner = os.getenv("FOREIGN_CARD_OWNER")
