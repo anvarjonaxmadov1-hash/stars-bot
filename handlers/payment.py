@@ -55,11 +55,12 @@ async def choose_payment_method(callback: CallbackQuery):
             show_stars_button = False
             notice = t(lang, "one_month_notice")
 
-    buttons = [
+
+      buttons = [
         [InlineKeyboardButton(text=t(lang, "pay_card"), callback_data=f"paycard_{callback.data}")],
-        [InlineKeyboardButton(text=t(lang, "pay_crypto"), callback_data=f"paycrypto_{callback.data}")],
         [InlineKeyboardButton(text=t(lang, "pay_foreign_card"), callback_data=f"payforeign_{callback.data}")],
     ]
+
     if show_stars_button:
         buttons.append([InlineKeyboardButton(text=t(lang, "pay_stars"), callback_data=f"paystars_{callback.data}")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")])
