@@ -4,8 +4,12 @@ from aiogram.filters import CommandStart, Command, CommandObject
 
 import database as db
 from locales import t
+from config import ADMIN_IDS
 
 router = Router()
+
+# user_id -> True, yordam xabari kutilayotgan foydalanuvchilar uchun
+PENDING_SUPPORT: dict[int, bool] = {}
 
 
 def lang_keyboard() -> InlineKeyboardMarkup:
@@ -24,6 +28,7 @@ def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=t(lang, "btn_stars"), callback_data="menu_stars")],
         [InlineKeyboardButton(text=t(lang, "btn_orders"), callback_data="menu_orders")],
         [InlineKeyboardButton(text=t(lang, "btn_invite"), callback_data="menu_invite")],
+        [InlineKeyboardButton(text=t(lang, "btn_support"), callback_data="menu_support")],
         [InlineKeyboardButton(text=t(lang, "btn_lang"), callback_data="menu_lang")],
     ])
 
@@ -86,3 +91,51 @@ async def back_to_menu(callback: CallbackQuery):
     lang = await db.get_lang(callback.from_user.id)
     await callback.message.edit_text(t(lang, "main_menu"), reply_markup=main_menu_keyboard(lang))
     await callback.answer()
+
+
+async def _build_orders_summary(user_id: int) -> str:
+    orders = await db.get_user_orders(user_id)
+    if not orders:
+        return "— (buyurtmalar yo'q)"
+    lines = []
+    for order_id, item, price, status in orders:
+        lines.append(f"#{order_id} | {item} | {price:,} so'm | {status}".replace(",", " "))
+    return "\n".join(lines)
+
+
+@router.message(Command("support"))
+async def cmd_support(message: Message):
+    lang = await db.get_lang(message.from_user.id)
+    PENDING_SUPPORT[message.from_user.id] = True
+    await message.answer(t(lang, "support_prompt"))
+
+
+@router.callback_query(F.data == "menu_support")
+async def menu_support(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
+    PENDING_SUPPORT[callback.from_user.id] = True
+    await callback.message.edit_text(
+        t(lang, "support_prompt"),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")]]),
+    )
+    await callback.answer()
+
+
+def is_pending_support(message: Message) -> bool:
+    return message.from_user.id in PENDING_SUPPORT
+
+
+@router.message(F.text, is_pending_support)
+async def handle_support_message(message: Message, bot: Bot):
+    user_id = message.from_user.id
+    PENDING_SUPPORT.pop(user_id, None)
+    lang = await db.get_lang(user_id)
+    orders_summary = await _build_orders_summary(user_id)
+
+    for admin_id in ADMIN_IDS:
+        await bot.send_message(
+            admin_id,
+            t("uz", "support_admin_msg", username=message.from_user.username or "-",
+              user_id=user_id, message=message.text, orders=orders_summary),
+        )
+    await message.answer(t(lang, "support_sent"))
