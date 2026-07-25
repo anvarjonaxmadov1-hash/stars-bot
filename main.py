@@ -18,6 +18,7 @@ async def set_bot_commands(bot: Bot):
         BotCommand(command="stars", description="Stars sotib olish"),
         BotCommand(command="orders", description="Buyurtmalarim"),
         BotCommand(command="invite", description="Do'stlarni taklif qilish"),
+        BotCommand(command="support", description="Yordam / Muammo bo'yicha"),
         BotCommand(command="language", description="Tilni o'zgartirish"),
     ]
     await bot.set_my_commands(commands)
@@ -43,5 +44,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-import os
-
