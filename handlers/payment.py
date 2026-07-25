@@ -45,13 +45,15 @@ async def choose_payment_method(callback: CallbackQuery):
         return
 
     # 1 oylik Premium'da Stars orqali avtomatik yetkazish yo'q (Telegram cheklovi),
-    # shuning uchun bu holatda "Stars orqali" tugmasi ko'rsatilmaydi
+    # shuning uchun bu holatda "Stars orqali" tugmasi ko'rsatilmaydi, va maxsus ogohlantirish chiqadi
     show_stars_button = True
+    notice = ""
     if callback.data.startswith("buy_prem_"):
         item_id = callback.data.replace("buy_prem_", "")
         plan = next((p for p in PREMIUM_PLANS if p["id"] == item_id), None)
         if plan and plan.get("price_stars_service") is None:
             show_stars_button = False
+            notice = t(lang, "one_month_notice")
 
     buttons = [
         [InlineKeyboardButton(text=t(lang, "pay_card"), callback_data=f"paycard_{callback.data}")],
@@ -63,7 +65,7 @@ async def choose_payment_method(callback: CallbackQuery):
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await callback.message.edit_text(t(lang, "choose_payment"), reply_markup=keyboard)
+    await callback.message.edit_text(notice + t(lang, "choose_payment"), reply_markup=keyboard)
     await callback.answer()
 
 
