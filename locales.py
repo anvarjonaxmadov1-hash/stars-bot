@@ -1,0 +1,23 @@
+TEXTS = {
+    "uz": {
+        "choose_lang": "Tilni tanlang / Выберите язык / Choose language:",
+        "welcome": "👋 Xush kelibsiz, {name}!\n\nBu bot orqali siz Telegram Premium va Stars xarid qilishingiz mumkin.",
+        "main_menu": "Kerakli bo'limni tanlang:",
+        "btn_premium": "⭐ Telegram Premium",
+        "btn_stars": "✨ Telegram Stars",
+        "btn_orders": "📦 Buyurtmalarim",
+        "btn_invite": "🤝 Do'stlarni taklif qilish",
+        "btn_lang": "🌐 Tilni o'zgartirish",
+        "invite_text": "🤝 Do'stlaringizni taklif qiling!\n\nQuyidagi shaxsiy havolangizni ulashing:\n{link}\n\n👥 Siz taklif qilgan do'stlar soni: {count}",
+        "btn_back": "⬅️ Orqaga",
+        "choose_premium": "Kerakli muddatni tanlang:",
+        "choose_stars": "Kerakli Stars paketini tanlang:",
+        "premium_item": "{months} oylik Premium — {price} so'm",
+        "stars_item": "{amount} ⭐ Stars — {price} so'm",
+        "choose_payment": "To'lov usulini tanlang:",
+        "pay_card": "💳 Karta orqali (Click/Payme)",
+        "pay_crypto": "🌍 USDT orqali (chet el uchun)",
+        "pay_foreign_card": "🌎 Visa/Mastercard (chet el uchun, $)",
+        "pay_stars": "⭐ Telegram Stars orqali",
+        "order_created": "✅ Buyurtma #{order_id} yaratildi.\nSumma: {price} so'm\n\nKartaga o'tkazing:\n💳 {card}\n👤 {owner}\n\nTo'lovdan so'ng screenshot (rasm) yuboring — buyurtma tekshiruvga yuboriladi.",
+        "crypto_order_created": "✅ Buyurtma #{order_id} yaratildi.\nSumma: ≈ {usd} USDT\n\nQuyidagi manzilga o'tkazing:\n🌐 Tarmoq: {network}\n📥 Manzil: `{wallet}`\n\n⚠️ Faqat {network} tarmog'idan foydalaning!\n\nTo'lovdan so'ng screenshot (rasm) yubori
