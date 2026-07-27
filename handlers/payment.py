@@ -13,6 +13,7 @@ from config import (
     PREMIUM_PLANS, STARS_PACKAGES, PAYMENT_CARD_NUMBER, PAYMENT_CARD_OWNER,
     ADMIN_IDS, CRYPTO_WALLET, CRYPTO_NETWORK, USD_TO_UZS,
     FOREIGN_CARD_VISA, FOREIGN_CARD_MASTERCARD, FOREIGN_CARD_OWNER,
+    REFERRAL_BONUS_AMOUNT,
 )
 
 router = Router()
@@ -36,6 +37,39 @@ def find_item(callback_data: str):
     return None, None
 
 
+async def notify_admin_new_order(bot: Bot, order_id: int, user_id: int, username: str | None, item: str, price: int, method_label: str):
+    caption = t("uz", "new_order_admin", order_id=order_id, username=username or "-",
+                user_id=user_id, item=item, price=f"{price:,}".replace(",", " "), method=method_label)
+    for admin_id in ADMIN_IDS:
+        await bot.send_message(admin_id, caption)
+
+
+async def credit_referral_bonus(bot: Bot, order_id: int, buyer_id: int):
+    """Agar xaridor kimningdir taklifi bilan kelgan bo'lsa va bu buyurtma uchun bonus hali berilmagan bo'lsa, taklif qiluvchiga bonus qo'shadi."""
+    order = await db.get_order(order_id)
+    if not order:
+        return
+    _, _, _, _, _, _, _, bonus_given = order
+    if bonus_given:
+        return
+
+    referrer_id = await db.get_referrer(buyer_id)
+    if not referrer_id:
+        return
+
+    await db.add_balance(referrer_id, REFERRAL_BONUS_AMOUNT)
+    await db.mark_bonus_given(order_id)
+
+    referrer_lang = await db.get_lang(referrer_id)
+    try:
+        await bot.send_message(
+            referrer_id,
+            t(referrer_lang, "referral_bonus_notice", amount=f"{REFERRAL_BONUS_AMOUNT:,}".replace(",", " ")),
+        )
+    except Exception:
+        pass  # referrer botni bloklagan bo'lishi mumkin
+
+
 @router.callback_query(F.data.startswith("buy_prem_") | F.data.startswith("buy_star_"))
 async def choose_payment_method(callback: CallbackQuery):
     lang = await db.get_lang(callback.from_user.id)
@@ -44,8 +78,6 @@ async def choose_payment_method(callback: CallbackQuery):
         await callback.answer("Xatolik / Error", show_alert=True)
         return
 
-    # 1 oylik Premium'da Stars orqali avtomatik yetkazish yo'q (Telegram cheklovi),
-    # shuning uchun bu holatda "Stars orqali" tugmasi ko'rsatilmaydi, va maxsus ogohlantirish chiqadi
     show_stars_button = True
     notice = ""
     if callback.data.startswith("buy_prem_"):
@@ -57,7 +89,6 @@ async def choose_payment_method(callback: CallbackQuery):
 
     buttons = [
         [InlineKeyboardButton(text=t(lang, "pay_card"), callback_data=f"paycard_{callback.data}")],
-        
         [InlineKeyboardButton(text=t(lang, "pay_foreign_card"), callback_data=f"payforeign_{callback.data}")],
     ]
     if show_stars_button:
@@ -70,54 +101,63 @@ async def choose_payment_method(callback: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("paycard_"))
-async def pay_with_card(callback: CallbackQuery):
-    lang = await db.get_lang(callback.from_user.id)
+async def pay_with_card(callback: CallbackQuery, bot: Bot):
+    user_id = callback.from_user.id
+    lang = await db.get_lang(user_id)
     original = callback.data.replace("paycard_", "")
     item_name, price = find_item(original)
 
-    order_id = await db.create_order(callback.from_user.id, item_name, price, "card")
-    PENDING_SCREENSHOT[callback.from_user.id] = order_id
+    balance = await db.get_balance(user_id)
+    discount = min(balance, price)
+    if discount > 0:
+        await db.use_balance(user_id, discount)
+    final_price = price - discount
 
-    await callback.message.edit_text(
-        t(lang, "order_created", order_id=order_id, price=f"{price:,}".replace(",", " "),
-          card=PAYMENT_CARD_NUMBER, owner=PAYMENT_CARD_OWNER)
-    )
-    await callback.answer()
+    order_id = await db.create_order(user_id, item_name, price, "card", discount_used=discount)
 
-
-@router.callback_query(F.data.startswith("paycrypto_"))
-async def pay_with_crypto(callback: CallbackQuery):
-    lang = await db.get_lang(callback.from_user.id)
-    original = callback.data.replace("paycrypto_", "")
-    item_name, price_som = find_item(original)
-
-    usd_amount = round(price_som / USD_TO_UZS, 2)
-
-    order_id = await db.create_order(callback.from_user.id, item_name, price_som, "crypto")
-    PENDING_SCREENSHOT[callback.from_user.id] = order_id
-
-    await callback.message.edit_text(
-        t(lang, "crypto_order_created", order_id=order_id, usd=usd_amount,
-          network=CRYPTO_NETWORK, wallet=CRYPTO_WALLET)
-    )
+    if final_price <= 0:
+        await db.update_order_status(order_id, "paid")
+        await callback.message.edit_text(t(lang, "fully_covered", order_id=order_id))
+        await notify_admin_new_order(bot, order_id, user_id, callback.from_user.username, item_name, price, "Karta (balans bilan to'liq qoplandi)")
+        await credit_referral_bonus(bot, order_id, user_id)
+    else:
+        PENDING_SCREENSHOT[user_id] = order_id
+        text = t(lang, "order_created", order_id=order_id, price=f"{final_price:,}".replace(",", " "),
+                 card=PAYMENT_CARD_NUMBER, owner=PAYMENT_CARD_OWNER)
+        if discount > 0:
+            text += t(lang, "discount_applied", discount=f"{discount:,}".replace(",", " "))
+        await callback.message.edit_text(text)
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("payforeign_"))
-async def pay_with_foreign_card(callback: CallbackQuery):
-    lang = await db.get_lang(callback.from_user.id)
+async def pay_with_foreign_card(callback: CallbackQuery, bot: Bot):
+    user_id = callback.from_user.id
+    lang = await db.get_lang(user_id)
     original = callback.data.replace("payforeign_", "")
     item_name, price_som = find_item(original)
 
-    usd_amount = round(price_som / USD_TO_UZS, 2)
+    balance = await db.get_balance(user_id)
+    discount = min(balance, price_som)
+    if discount > 0:
+        await db.use_balance(user_id, discount)
+    final_price_som = price_som - discount
 
-    order_id = await db.create_order(callback.from_user.id, item_name, price_som, "foreign_card")
-    PENDING_SCREENSHOT[callback.from_user.id] = order_id
+    order_id = await db.create_order(user_id, item_name, price_som, "foreign_card", discount_used=discount)
 
-    await callback.message.edit_text(
-        t(lang, "foreign_card_order_created", order_id=order_id, usd=usd_amount,
-          visa=FOREIGN_CARD_VISA, mastercard=FOREIGN_CARD_MASTERCARD, owner=FOREIGN_CARD_OWNER)
-    )
+    if final_price_som <= 0:
+        await db.update_order_status(order_id, "paid")
+        await callback.message.edit_text(t(lang, "fully_covered", order_id=order_id))
+        await notify_admin_new_order(bot, order_id, user_id, callback.from_user.username, item_name, price_som, "Visa/Mastercard (balans bilan to'liq qoplandi)")
+        await credit_referral_bonus(bot, order_id, user_id)
+    else:
+        usd_amount = round(final_price_som / USD_TO_UZS, 2)
+        PENDING_SCREENSHOT[user_id] = order_id
+        text = t(lang, "foreign_card_order_created", order_id=order_id, usd=usd_amount,
+                 visa=FOREIGN_CARD_VISA, mastercard=FOREIGN_CARD_MASTERCARD, owner=FOREIGN_CARD_OWNER)
+        if discount > 0:
+            text += t(lang, "discount_applied", discount=f"{discount:,}".replace(",", " "))
+        await callback.message.edit_text(text)
     await callback.answer()
 
 
@@ -125,14 +165,15 @@ async def pay_with_foreign_card(callback: CallbackQuery):
 async def receive_screenshot(message: Message, bot: Bot):
     user_id = message.from_user.id
     if user_id not in PENDING_SCREENSHOT:
-        return  # kutilayotgan buyurtma yo'q, e'tiborsiz qoldiramiz
+        return
 
     lang = await db.get_lang(user_id)
     order_id = PENDING_SCREENSHOT.pop(user_id)
     order = await db.get_order(order_id)
     if not order:
         return
-    _, _, item, price, method, _ = order
+    _, _, item, price, method, _, discount_used, _ = order
+    amount_to_pay = price - discount_used
 
     await message.answer(t(lang, "screenshot_received", order_id=order_id))
 
@@ -145,7 +186,7 @@ async def receive_screenshot(message: Message, bot: Bot):
     method_labels = {"crypto": "USDT", "foreign_card": "Visa/Mastercard"}
     method_label = method_labels.get(method, "Karta")
     caption = t(lang, "new_order_admin", order_id=order_id, username=message.from_user.username or "-",
-                user_id=user_id, item=item, price=f"{price:,}".replace(",", " "), method=method_label)
+                user_id=user_id, item=item, price=f"{amount_to_pay:,}".replace(",", " "), method=method_label)
     for admin_id in ADMIN_IDS:
         await bot.send_photo(admin_id, message.photo[-1].file_id, caption=caption, reply_markup=admin_keyboard)
 
@@ -193,9 +234,8 @@ async def successful_payment(message: Message, bot: Bot):
     order = await db.get_order(order_id)
     if not order:
         return
-    _, user_id, item, price, method, _ = order
+    _, user_id, item, price, method, _, _, _ = order
 
-    # Agar bu Premium buyurtma bo'lsa va Stars orqali to'langan bo'lsa — avtomatik yetkazib beramiz
     match = re.match(r"(\d+) oylik Premium", item)
     if match and method == "telegram_stars":
         months = int(match.group(1))
@@ -209,6 +249,7 @@ async def successful_payment(message: Message, bot: Bot):
                 ))
                 await db.update_order_status(order_id, "delivered")
                 await bot.send_message(user_id, t(lang, "premium_delivered", order_id=order_id))
+                await credit_referral_bonus(bot, order_id, user_id)
                 return
             except Exception as e:
                 for admin_id in ADMIN_IDS:
@@ -219,10 +260,5 @@ async def successful_payment(message: Message, bot: Bot):
                     )
                 return
 
-    # Aks holda (masalan Stars paketi sotib olingan) — adminga xabar, qo'lda yetkazib beriladi
-    for admin_id in ADMIN_IDS:
-        await bot.send_message(
-            admin_id,
-            t("uz", "new_order_admin", order_id=order_id, username=message.from_user.username or "-",
-              user_id=user_id, item=item, price=f"{price:,}".replace(",", " "), method="Telegram Stars"),
-)
+    await notify_admin_new_order(bot, order_id, user_id, message.from_user.username, item, price, "Telegram Stars")
+    await credit_referral_bonus(bot, order_id, user_id)
