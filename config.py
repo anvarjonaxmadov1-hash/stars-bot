@@ -33,7 +33,7 @@ PREMIUM_PLANS = [
 STARS_PACKAGES = [
     {"id": "st_50", "amount": 50, "price_som": 15399},
     {"id": "st_100", "amount": 100, "price_som": 26499},
-    {"id": "st_250", "amount": 250, "price_som": 60599},
+    {"id": "st_250", "amount": 250, "price_som": 60990},
     {"id": "st_500", "amount": 500, "price_som": 119699},
     {"id": "st_1000", "amount": 1000, "price_som": 235999},
 ]
