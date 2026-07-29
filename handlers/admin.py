@@ -21,7 +21,7 @@ async def handle_order_decision(callback: CallbackQuery, bot: Bot):
         await callback.answer("Buyurtma topilmadi", show_alert=True)
         return
 
-    _, user_id, item, price, method, status = order
+    _, user_id, item, price, method, status, discount_used, bonus_given = order
     new_status = "paid" if action == "approve" else "rejected"
     await db.update_order_status(order_id, new_status)
 
@@ -29,9 +29,18 @@ async def handle_order_decision(callback: CallbackQuery, bot: Bot):
     text_key = "order_approved" if action == "approve" else "order_rejected"
     await bot.send_message(user_id, t(user_lang, text_key, order_id=order_id))
 
+    if action == "approve":
+        from handlers.payment import credit_referral_bonus
+        await credit_referral_bonus(bot, order_id, user_id)
+    elif discount_used > 0:
+        await db.add_balance(user_id, discount_used)
+
     result_text = "✅ TASDIQLANDI" if action == "approve" else "❌ RAD ETILDI"
     try:
         await callback.message.edit_caption(caption=f"{callback.message.caption}\n\n{result_text}")
     except Exception:
-        pass
+        try:
+            await callback.message.edit_text(f"{callback.message.text}\n\n{result_text}")
+        except Exception:
+            pass
     await callback.answer("Bajarildi ✅")
