@@ -21,7 +21,10 @@ FOREIGN_CARD_MASTERCARD = os.getenv("FOREIGN_CARD_MASTERCARD", "5412 XXXX XXXX X
 FOREIGN_CARD_OWNER = os.getenv("FOREIGN_CARD_OWNER", "F. I. Sh.")
 
 # Taklif qilingan do'stning har bir tasdiqlangan buyurtmasi uchun taklif qiluvchiga beriladigan bonus (so'mda)
-REFERRAL_BONUS_AMOUNT = int(os.getenv("REFERRAL_BONUS_AMOUNT", "500"))
+REFERRAL_BONUS_AMOUNT = int(os.getenv("REFERRAL_BONUS_AMOUNT", "100"))
+
+# Majburiy obuna kanali (bo'sh qoldirsangiz, majburiy obuna o'chiq bo'ladi)
+FORCE_SUB_CHANNEL = os.getenv("FORCE_SUB_CHANNEL", "@premium_channeluz")
 
 DB_PATH = "bot.db"
 
