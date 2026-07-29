@@ -18,6 +18,7 @@ async def set_bot_commands(bot: Bot):
         BotCommand(command="stars", description="Stars sotib olish"),
         BotCommand(command="orders", description="Buyurtmalarim"),
         BotCommand(command="invite", description="Do'stlarni taklif qilish"),
+        BotCommand(command="balance", description="Balansim"),
         BotCommand(command="support", description="Yordam / Muammo bo'yicha"),
         BotCommand(command="language", description="Tilni o'zgartirish"),
     ]
