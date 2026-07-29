@@ -5,6 +5,7 @@ from aiogram.filters import CommandStart, Command, CommandObject
 import database as db
 from locales import t
 from config import ADMIN_IDS
+from middleware import is_subscribed
 
 router = Router()
 
@@ -20,6 +21,16 @@ def lang_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en"),
         ]
     ])
+
+
+@router.callback_query(F.data == "check_sub")
+async def check_sub_callback(callback: CallbackQuery, bot: Bot):
+    lang = await db.get_lang(callback.from_user.id)
+    if await is_subscribed(bot, callback.from_user.id):
+        await callback.answer("✅")
+        await callback.message.edit_text(t("uz", "choose_lang"), reply_markup=lang_keyboard())
+    else:
+        await callback.answer(t(lang, "still_not_subscribed"), show_alert=True)
 
 
 def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
