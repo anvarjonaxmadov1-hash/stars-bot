@@ -9,6 +9,7 @@ from aiogram.types import BotCommand
 from config import BOT_TOKEN
 import database as db
 from handlers import start, catalog, payment, admin
+from middleware import ForceSubMiddleware
 
 
 async def set_bot_commands(bot: Bot):
@@ -32,6 +33,9 @@ async def main():
 
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
+
+    dp.message.outer_middleware(ForceSubMiddleware())
+    dp.callback_query.outer_middleware(ForceSubMiddleware())
 
     dp.include_router(start.router)
     dp.include_router(catalog.router)
