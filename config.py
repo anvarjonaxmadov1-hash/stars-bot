@@ -20,6 +20,9 @@ FOREIGN_CARD_VISA = os.getenv("FOREIGN_CARD_VISA", "4111 XXXX XXXX XXXX")
 FOREIGN_CARD_MASTERCARD = os.getenv("FOREIGN_CARD_MASTERCARD", "5412 XXXX XXXX XXXX")
 FOREIGN_CARD_OWNER = os.getenv("FOREIGN_CARD_OWNER", "F. I. Sh.")
 
+# Taklif qilingan do'stning har bir tasdiqlangan buyurtmasi uchun taklif qiluvchiga beriladigan bonus (so'mda)
+REFERRAL_BONUS_AMOUNT = int(os.getenv("REFERRAL_BONUS_AMOUNT", "500"))
+
 DB_PATH = "bot.db"
 
 # ==== MAHSULOTLAR ====
