@@ -28,6 +28,7 @@ def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=t(lang, "btn_stars"), callback_data="menu_stars")],
         [InlineKeyboardButton(text=t(lang, "btn_orders"), callback_data="menu_orders")],
         [InlineKeyboardButton(text=t(lang, "btn_invite"), callback_data="menu_invite")],
+        [InlineKeyboardButton(text=t(lang, "btn_balance"), callback_data="menu_balance")],
         [InlineKeyboardButton(text=t(lang, "btn_support"), callback_data="menu_support")],
         [InlineKeyboardButton(text=t(lang, "btn_lang"), callback_data="menu_lang")],
     ])
@@ -54,7 +55,8 @@ async def cmd_invite(message: Message, bot: Bot):
     me = await bot.get_me()
     link = f"https://t.me/{me.username}?start=ref_{message.from_user.id}"
     count = await db.count_referrals(message.from_user.id)
-    await message.answer(t(lang, "invite_text", link=link, count=count))
+    balance = await db.get_balance(message.from_user.id)
+    await message.answer(t(lang, "invite_text", link=link, count=count, balance=f"{balance:,}".replace(",", " ")))
 
 
 @router.callback_query(F.data == "menu_invite")
@@ -63,8 +65,9 @@ async def menu_invite(callback: CallbackQuery, bot: Bot):
     me = await bot.get_me()
     link = f"https://t.me/{me.username}?start=ref_{callback.from_user.id}"
     count = await db.count_referrals(callback.from_user.id)
+    balance = await db.get_balance(callback.from_user.id)
     await callback.message.edit_text(
-        t(lang, "invite_text", link=link, count=count),
+        t(lang, "invite_text", link=link, count=count, balance=f"{balance:,}".replace(",", " ")),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")]]),
     )
     await callback.answer()
@@ -101,6 +104,24 @@ async def _build_orders_summary(user_id: int) -> str:
     for order_id, item, price, status in orders:
         lines.append(f"#{order_id} | {item} | {price:,} so'm | {status}".replace(",", " "))
     return "\n".join(lines)
+
+
+@router.message(Command("balance"))
+async def cmd_balance(message: Message):
+    lang = await db.get_lang(message.from_user.id)
+    balance = await db.get_balance(message.from_user.id)
+    await message.answer(t(lang, "balance_text", balance=f"{balance:,}".replace(",", " ")))
+
+
+@router.callback_query(F.data == "menu_balance")
+async def menu_balance(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
+    balance = await db.get_balance(callback.from_user.id)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")],
+    ])
+    await callback.message.edit_text(t(lang, "balance_text", balance=f"{balance:,}".replace(",", " ")), reply_markup=keyboard)
+    await callback.answer()
 
 
 @router.message(Command("support"))
