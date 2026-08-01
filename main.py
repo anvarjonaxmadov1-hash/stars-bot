@@ -14,11 +14,11 @@ from middleware import ForceSubMiddleware
 
 async def set_bot_commands(bot: Bot):
     commands = [
-        BotCommand(command="start", description="Botni qayta boshlash"),
-        BotCommand(command="premium", description="Premium sotib olish"),
-        BotCommand(command="stars", description="Stars sotib olish"),
-        BotCommand(command="orders", description="Buyurtmalarim"),
-        BotCommand(command="support", description="Yordam"),
+        BotCommand(command="start", description="Restart the bot"),
+        BotCommand(command="premium", description="Buy Premium"),
+        BotCommand(command="stars", description="Buy Stars"),
+        BotCommand(command="orders", description="My orders"),
+        BotCommand(command="support", description="Support"),
     ]
     await bot.set_my_commands(commands)
 
