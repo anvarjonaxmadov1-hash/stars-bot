@@ -18,10 +18,7 @@ async def set_bot_commands(bot: Bot):
         BotCommand(command="premium", description="Premium sotib olish"),
         BotCommand(command="stars", description="Stars sotib olish"),
         BotCommand(command="orders", description="Buyurtmalarim"),
-        BotCommand(command="invite", description="Do'stlarni taklif qilish"),
-        BotCommand(command="balance", description="Balansim"),
-        BotCommand(command="support", description="Yordam / Muammo bo'yicha"),
-        BotCommand(command="language", description="Tilni o'zgartirish"),
+        BotCommand(command="support", description="Yordam"),
     ]
     await bot.set_my_commands(commands)
 
