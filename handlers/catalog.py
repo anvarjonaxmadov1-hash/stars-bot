@@ -13,28 +13,35 @@ def back_button(lang: str, to: str = "menu_back") -> InlineKeyboardButton:
     return InlineKeyboardButton(text=t(lang, "btn_back"), callback_data=to)
 
 
+def _grid(buttons: list, columns: int = 2) -> list:
+    """Tugmalar ro'yxatini berilgan ustun soniga bo'lib qatorlarga ajratadi."""
+    return [buttons[i:i + columns] for i in range(0, len(buttons), columns)]
+
+
 def premium_keyboard(lang: str) -> InlineKeyboardMarkup:
-    buttons = [
-        [InlineKeyboardButton(
+    items = [
+        InlineKeyboardButton(
             text=t(lang, "premium_item", months=p["months"], price=f'{p["price_som"]:,}'.replace(",", " ")),
             callback_data=f"buy_prem_{p['id']}",
-        )]
+        )
         for p in PREMIUM_PLANS
     ]
-    buttons.append([back_button(lang)])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    rows = _grid(items, columns=2)
+    rows.append([back_button(lang)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def stars_keyboard(lang: str) -> InlineKeyboardMarkup:
-    buttons = [
-        [InlineKeyboardButton(
+    items = [
+        InlineKeyboardButton(
             text=t(lang, "stars_item", amount=s["amount"], price=f'{s["price_som"]:,}'.replace(",", " ")),
             callback_data=f"buy_star_{s['id']}",
-        )]
+        )
         for s in STARS_PACKAGES
     ]
-    buttons.append([back_button(lang)])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    rows = _grid(items, columns=2)
+    rows.append([back_button(lang)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 async def build_orders_text(lang: str, user_id: int) -> str:
