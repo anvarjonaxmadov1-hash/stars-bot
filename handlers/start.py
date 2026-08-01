@@ -41,7 +41,6 @@ def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=t(lang, "btn_invite"), callback_data="menu_invite")],
         [InlineKeyboardButton(text=t(lang, "btn_balance"), callback_data="menu_balance")],
         [InlineKeyboardButton(text=t(lang, "btn_support"), callback_data="menu_support")],
-        [InlineKeyboardButton(text=t(lang, "btn_lang"), callback_data="menu_lang")],
     ])
 
 
