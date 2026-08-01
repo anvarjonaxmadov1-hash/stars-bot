@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 
@@ -64,10 +64,11 @@ async def show_premium(callback: CallbackQuery):
 
 
 @router.callback_query(F.data == "menu_stars")
-async def show_stars(callback: CallbackQuery):
+async def show_stars(callback: CallbackQuery, bot: Bot):
     lang = await db.get_lang(callback.from_user.id)
-    await callback.message.edit_text(t(lang, "choose_stars"), reply_markup=stars_keyboard(lang))
     await callback.answer()
+    await bot.send_message(callback.from_user.id, "🌟")
+    await callback.message.answer(t(lang, "choose_stars"), reply_markup=stars_keyboard(lang))
 
 
 @router.callback_query(F.data == "menu_orders")
@@ -87,6 +88,7 @@ async def cmd_premium(message: Message):
 @router.message(Command("stars"))
 async def cmd_stars(message: Message):
     lang = await db.get_lang(message.from_user.id)
+    await message.answer("🌟")
     await message.answer(t(lang, "choose_stars"), reply_markup=stars_keyboard(lang))
 
 
