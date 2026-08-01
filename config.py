@@ -37,9 +37,20 @@ PREMIUM_PLANS = [
 ]
 
 STARS_PACKAGES = [
-    {"id": "st_50", "amount": 50, "price_som": 15399},
-    {"id": "st_100", "amount": 100, "price_som": 26499},
-    {"id": "st_250", "amount": 250, "price_som": 60990},
-    {"id": "st_500", "amount": 500, "price_som": 119699},
-    {"id": "st_1000", "amount": 1000, "price_som": 235999},
+    {"id": "st_50", "amount": 50, "price_som": 13899},
+    {"id": "st_100", "amount": 100, "price_som": 26899},
+    {"id": "st_150", "amount": 150, "price_som": 38499},
+    {"id": "st_250", "amount": 250, "price_som": 61499},
+    {"id": "st_350", "amount": 350, "price_som": 85499},
+    {"id": "st_500", "amount": 500, "price_som": 119499},
+    {"id": "st_750", "amount": 750, "price_som": 177499},
+    {"id": "st_1000", "amount": 1000, "price_som": 235499},
+    {"id": "st_1500", "amount": 1500, "price_som": 351499},
+    {"id": "st_2500", "amount": 2500, "price_som": 581499},
+    {"id": "st_5000", "amount": 5000, "price_som": 1161499},
+    {"id": "st_10000", "amount": 10000, "price_som": 2301499},
+    {"id": "st_25000", "amount": 25000, "price_som": 5801499},
+    {"id": "st_50000", "amount": 50000, "price_som": 11601499},
+    {"id": "st_100000", "amount": 100000, "price_som": 23001499},
+    {"id": "st_150000", "amount": 150000, "price_som": 35001499},
 ]
