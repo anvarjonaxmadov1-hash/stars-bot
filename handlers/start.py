@@ -1,5 +1,8 @@
 from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton,
+    InlineQuery, InlineQueryResultArticle, InputTextMessageContent,
+)
 from aiogram.filters import CommandStart, Command, CommandObject
 
 import database as db
@@ -66,7 +69,13 @@ async def cmd_invite(message: Message, bot: Bot):
     link = f"https://t.me/{me.username}?start=ref_{message.from_user.id}"
     count = await db.count_referrals(message.from_user.id)
     balance = await db.get_balance(message.from_user.id)
-    await message.answer(t(lang, "invite_text", link=link, count=count, balance=f"{balance:,}".replace(",", " ")))
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_share"), switch_inline_query="invite")],
+    ])
+    await message.answer(
+        t(lang, "invite_text", link=link, count=count, balance=f"{balance:,}".replace(",", " ")),
+        reply_markup=keyboard,
+    )
 
 
 @router.callback_query(F.data == "menu_invite")
@@ -76,11 +85,31 @@ async def menu_invite(callback: CallbackQuery, bot: Bot):
     link = f"https://t.me/{me.username}?start=ref_{callback.from_user.id}"
     count = await db.count_referrals(callback.from_user.id)
     balance = await db.get_balance(callback.from_user.id)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_share"), switch_inline_query="invite")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")],
+    ])
     await callback.message.edit_text(
         t(lang, "invite_text", link=link, count=count, balance=f"{balance:,}".replace(",", " ")),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")]]),
+        reply_markup=keyboard,
     )
     await callback.answer()
+
+
+@router.inline_query()
+async def handle_inline_query(inline_query: InlineQuery, bot: Bot):
+    user_id = inline_query.from_user.id
+    lang = await db.get_lang(user_id)
+    me = await bot.get_me()
+    link = f"https://t.me/{me.username}?start=ref_{user_id}"
+
+    result = InlineQueryResultArticle(
+        id="invite",
+        title=t(lang, "share_title"),
+        description=t(lang, "share_desc"),
+        input_message_content=InputTextMessageContent(message_text=t(lang, "share_message", link=link)),
+    )
+    await inline_query.answer([result], cache_time=1, is_personal=True)
 
 
 @router.callback_query(F.data.startswith("lang_"))
