@@ -12,7 +12,6 @@ from middleware import is_subscribed
 
 router = Router()
 
-# user_id -> True, yordam xabari kutilayotgan foydalanuvchilar uchun
 PENDING_SUPPORT: dict[int, bool] = {}
 
 
@@ -40,10 +39,6 @@ def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t(lang, "btn_premium"), callback_data="menu_premium")],
         [InlineKeyboardButton(text=t(lang, "btn_stars"), callback_data="menu_stars")],
-        [InlineKeyboardButton(text=t(lang, "btn_orders"), callback_data="menu_orders")],
-        [InlineKeyboardButton(text=t(lang, "btn_invite"), callback_data="menu_invite")],
-        [InlineKeyboardButton(text=t(lang, "btn_balance"), callback_data="menu_balance")],
-        [InlineKeyboardButton(text=t(lang, "btn_support"), callback_data="menu_support")],
     ])
 
 
