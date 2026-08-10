@@ -32,11 +32,13 @@ def premium_keyboard(lang: str) -> InlineKeyboardMarkup:
 
 
 def premium_type_keyboard(lang: str, plan_id: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎁 Sovg'a qilish", callback_data=f"gprem_{plan_id}")],
-        [InlineKeyboardButton(text="👤 O'zim uchun (akkountga kirib)", callback_data=f"sprem_{plan_id}")],
-        [back_button(lang, to="menu_premium")],
-    ])
+    # "O'zim uchun (akkountga kirib)" faqat 1 oylik va 12 oylik uchun ko'rsatiladi
+    self_allowed = plan_id in ("prem_1m", "prem_12m")
+    rows = [[InlineKeyboardButton(text="🎁 Sovg'a qilish", callback_data=f"gprem_{plan_id}")]]
+    if self_allowed:
+        rows.append([InlineKeyboardButton(text="👤 O'zim uchun (akkountga kirib)", callback_data=f"sprem_{plan_id}")])
+    rows.append([back_button(lang, to="menu_premium")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def stars_keyboard(lang: str) -> InlineKeyboardMarkup:
@@ -80,13 +82,17 @@ async def show_premium_type_choice(callback: CallbackQuery):
         await callback.answer("Xatolik / Error", show_alert=True)
         return
 
-    text = (
-        f"📦 {plan['months']} oylik Premium\n\n"
+    self_allowed = plan_id in ("prem_1m", "prem_12m")
+    text = f"📦 {plan['months']} oylik Premium\n\n"
+    text += (
         "🎁 <b>Sovg'a qilish</b> — Premium boshqa (yoki o'zingizning) Telegram akkauntingizga "
-        "sovg'a sifatida yuboriladi.\n\n"
-        "👤 <b>O'zim uchun (akkountga kirib)</b> — operator akkauntingizga kirib, Premium'ni "
-        "to'g'ridan-to'g'ri faollashtiradi. Bu usul barcha muddatlar uchun ishlaydi."
+        "sovg'a sifatida yuboriladi."
     )
+    if self_allowed:
+        text += (
+            "\n\n👤 <b>O'zim uchun (akkountga kirib)</b> — operator akkauntingizga kirib, Premium'ni "
+            "to'g'ridan-to'g'ri faollashtiradi."
+        )
     await callback.message.edit_text(text, reply_markup=premium_type_keyboard(lang, plan_id))
     await callback.answer()
 
