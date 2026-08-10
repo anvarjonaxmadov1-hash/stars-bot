@@ -18,23 +18,36 @@ from config import (
 
 router = Router()
 
-# user_id -> order_id, screenshot kutilayotgan buyurtmalar uchun (oddiy xotira holati)
 PENDING_SCREENSHOT: dict[int, int] = {}
 
 
 def find_item(callback_data: str):
-    """buy_prem_xxx yoki buy_star_xxx dan mahsulotni topadi"""
-    if callback_data.startswith("buy_prem_"):
-        item_id = callback_data.replace("buy_prem_", "")
+    if callback_data.startswith("gprem_"):
+        item_id = callback_data.replace("gprem_", "")
         plan = next((p for p in PREMIUM_PLANS if p["id"] == item_id), None)
         if plan:
-            return f"{plan['months']} oylik Premium", plan["price_som"]
+            return f"{plan['months']} oylik Premium (🎁 Sovg'a)", plan["price_som"]
+    elif callback_data.startswith("sprem_"):
+        item_id = callback_data.replace("sprem_", "")
+        plan = next((p for p in PREMIUM_PLANS if p["id"] == item_id), None)
+        if plan:
+            return f"{plan['months']} oylik Premium (👤 O'zim uchun)", plan["price_som"]
     elif callback_data.startswith("buy_star_"):
         item_id = callback_data.replace("buy_star_", "")
         pack = next((s for s in STARS_PACKAGES if s["id"] == item_id), None)
         if pack:
             return f"{pack['amount']} Stars", pack["price_som"]
     return None, None
+
+
+def _get_plan_from_callback(callback_data: str):
+    if callback_data.startswith("gprem_"):
+        item_id = callback_data.replace("gprem_", "")
+    elif callback_data.startswith("sprem_"):
+        item_id = callback_data.replace("sprem_", "")
+    else:
+        return None
+    return next((p for p in PREMIUM_PLANS if p["id"] == item_id), None)
 
 
 async def notify_admin_new_order(bot: Bot, order_id: int, user_id: int, username: str | None, item: str, price: int, method_label: str):
@@ -45,7 +58,6 @@ async def notify_admin_new_order(bot: Bot, order_id: int, user_id: int, username
 
 
 async def credit_referral_bonus(bot: Bot, order_id: int, buyer_id: int):
-    """Agar xaridor kimningdir taklifi bilan kelgan bo'lsa va bu buyurtma uchun bonus hali berilmagan bo'lsa, taklif qiluvchiga bonus qo'shadi."""
     order = await db.get_order(order_id)
     if not order:
         return
@@ -67,10 +79,10 @@ async def credit_referral_bonus(bot: Bot, order_id: int, buyer_id: int):
             t(referrer_lang, "referral_bonus_notice", amount=f"{REFERRAL_BONUS_AMOUNT:,}".replace(",", " ")),
         )
     except Exception:
-        pass  # referrer botni bloklagan bo'lishi mumkin
+        pass
 
 
-@router.callback_query(F.data.startswith("buy_prem_") | F.data.startswith("buy_star_"))
+@router.callback_query(F.data.startswith("gprem_") | F.data.startswith("sprem_") | F.data.startswith("buy_star_"))
 async def choose_payment_method(callback: CallbackQuery):
     lang = await db.get_lang(callback.from_user.id)
     item_name, price = find_item(callback.data)
@@ -78,14 +90,21 @@ async def choose_payment_method(callback: CallbackQuery):
         await callback.answer("Xatolik / Error", show_alert=True)
         return
 
+    is_self_type = callback.data.startswith("sprem_")
     show_stars_button = True
     notice = ""
-    if callback.data.startswith("buy_prem_"):
-        item_id = callback.data.replace("buy_prem_", "")
-        plan = next((p for p in PREMIUM_PLANS if p["id"] == item_id), None)
+
+    if callback.data.startswith("gprem_"):
+        plan = _get_plan_from_callback(callback.data)
         if plan and plan.get("price_stars_service") is None:
             show_stars_button = False
             notice = t(lang, "one_month_notice")
+    elif is_self_type:
+        show_stars_button = False
+        notice = (
+            "ℹ️ Bu buyurtma operator tomonidan akkauntingizga qo'lda kiritiladi. "
+            "To'lovdan so'ng chek yuboring, operator siz bilan bog'lanadi.\n\n"
+        )
 
     buttons = [
         [InlineKeyboardButton(text=t(lang, "pay_card"), callback_data=f"paycard_{callback.data}")],
@@ -197,9 +216,8 @@ async def pay_with_stars(callback: CallbackQuery, bot: Bot):
     original = callback.data.replace("paystars_", "")
     item_name, price_som = find_item(original)
 
-    if original.startswith("buy_prem_"):
-        item_id = original.replace("buy_prem_", "")
-        plan = next((p for p in PREMIUM_PLANS if p["id"] == item_id), None)
+    if original.startswith("gprem_"):
+        plan = _get_plan_from_callback(original)
         stars_amount = plan["price_stars_service"] if plan else max(1, round(price_som / 200))
     else:
         stars_amount = max(1, round(price_som / 200))
