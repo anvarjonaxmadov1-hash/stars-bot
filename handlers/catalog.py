@@ -22,13 +22,21 @@ def premium_keyboard(lang: str) -> InlineKeyboardMarkup:
     items = [
         InlineKeyboardButton(
             text=t(lang, "premium_item", months=p["months"], price=f'{p["price_som"]:,}'.replace(",", " ")),
-            callback_data=f"buy_prem_{p['id']}",
+            callback_data=f"premplan_{p['id']}",
         )
         for p in PREMIUM_PLANS
     ]
     rows = _grid(items, columns=2)
     rows.append([back_button(lang)])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def premium_type_keyboard(lang: str, plan_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎁 Sovg'a qilish", callback_data=f"gprem_{plan_id}")],
+        [InlineKeyboardButton(text="👤 O'zim uchun (akkountga kirib)", callback_data=f"sprem_{plan_id}")],
+        [back_button(lang, to="menu_premium")],
+    ])
 
 
 def stars_keyboard(lang: str) -> InlineKeyboardMarkup:
@@ -60,6 +68,26 @@ async def build_orders_text(lang: str, user_id: int) -> str:
 async def show_premium(callback: CallbackQuery):
     lang = await db.get_lang(callback.from_user.id)
     await callback.message.edit_text(t(lang, "choose_premium"), reply_markup=premium_keyboard(lang))
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("premplan_"))
+async def show_premium_type_choice(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
+    plan_id = callback.data.replace("premplan_", "")
+    plan = next((p for p in PREMIUM_PLANS if p["id"] == plan_id), None)
+    if not plan:
+        await callback.answer("Xatolik / Error", show_alert=True)
+        return
+
+    text = (
+        f"📦 {plan['months']} oylik Premium\n\n"
+        "🎁 <b>Sovg'a qilish</b> — Premium boshqa (yoki o'zingizning) Telegram akkauntingizga "
+        "sovg'a sifatida yuboriladi.\n\n"
+        "👤 <b>O'zim uchun (akkountga kirib)</b> — operator akkauntingizga kirib, Premium'ni "
+        "to'g'ridan-to'g'ri faollashtiradi. Bu usul barcha muddatlar uchun ishlaydi."
+    )
+    await callback.message.edit_text(text, reply_markup=premium_type_keyboard(lang, plan_id))
     await callback.answer()
 
 
