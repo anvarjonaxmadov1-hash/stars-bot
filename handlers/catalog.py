@@ -34,9 +34,13 @@ def premium_keyboard(lang: str) -> InlineKeyboardMarkup:
 def premium_type_keyboard(lang: str, plan_id: str) -> InlineKeyboardMarkup:
     # "O'zim uchun (akkountga kirib)" faqat 1 oylik va 12 oylik uchun ko'rsatiladi
     self_allowed = plan_id in ("prem_1m", "prem_12m")
-    rows = [[InlineKeyboardButton(text="🎁 Sovg'a qilish", callback_data=f"gprem_{plan_id}")]]
     if self_allowed:
-        rows.append([InlineKeyboardButton(text="👤 O'zim uchun (akkountga kirib)", callback_data=f"sprem_{plan_id}")])
+        rows = [
+            [InlineKeyboardButton(text=t(lang, "btn_gift"), callback_data=f"gprem_{plan_id}")],
+            [InlineKeyboardButton(text=t(lang, "btn_self"), callback_data=f"sprem_{plan_id}")],
+        ]
+    else:
+        rows = [[InlineKeyboardButton(text=t(lang, "btn_buy_premium"), callback_data=f"gprem_{plan_id}")]]
     rows.append([back_button(lang, to="menu_premium")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -83,16 +87,11 @@ async def show_premium_type_choice(callback: CallbackQuery):
         return
 
     self_allowed = plan_id in ("prem_1m", "prem_12m")
-    text = f"📦 {plan['months']} oylik Premium\n\n"
-    text += (
-        "🎁 <b>Sovg'a qilish</b> — Premium boshqa (yoki o'zingizning) Telegram akkauntingizga "
-        "sovg'a sifatida yuboriladi."
-    )
+    text = t(lang, "premium_choice_title", months=plan["months"]) + "\n\n"
     if self_allowed:
-        text += (
-            "\n\n👤 <b>O'zim uchun (akkountga kirib)</b> — operator akkauntingizga kirib, Premium'ni "
-            "to'g'ridan-to'g'ri faollashtiradi."
-        )
+        text += t(lang, "premium_choice_gift_desc") + t(lang, "premium_choice_self_desc")
+    else:
+        text += t(lang, "premium_choice_buy_desc")
     await callback.message.edit_text(text, reply_markup=premium_type_keyboard(lang, plan_id))
     await callback.answer()
 
