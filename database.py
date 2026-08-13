@@ -12,6 +12,7 @@ async def get_pool() -> asyncpg.Pool:
 
 
 async def init_db():
+    # Jadvallar Supabase SQL Editor orqali oldindan yaratilgan.
     await get_pool()
 
 
@@ -56,6 +57,7 @@ async def add_balance(user_id: int, amount: int):
 
 
 async def use_balance(user_id: int, max_amount: int) -> int:
+    """Foydalanuvchi balansidan iloji boricha ko'p, lekin max_amount'dan oshmagan miqdorni ishlatadi. Ishlatilgan miqdorni qaytaradi."""
     current = await get_balance(user_id)
     used = min(current, max_amount)
     if used > 0:
@@ -130,3 +132,10 @@ async def get_user_orders(user_id: int):
             user_id,
         )
         return [(r["order_id"], r["item"], r["price"], r["status"]) for r in rows]
+
+
+async def count_orders(user_id: int) -> int:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT COUNT(*) AS cnt FROM orders WHERE user_id=$1", user_id)
+        return row["cnt"] if row else 0
