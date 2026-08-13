@@ -9,6 +9,18 @@ from config import PREMIUM_PLANS, STARS_PACKAGES
 router = Router()
 
 
+async def safe_edit(callback: CallbackQuery, text: str, keyboard: InlineKeyboardMarkup | None = None):
+    """Xabarni matn bilan yangilaydi. Agar xabar rasm (banner) bo'lsa, o'chirib, yangi matn xabar yuboradi."""
+    try:
+        await callback.message.edit_text(text, reply_markup=keyboard)
+    except Exception:
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        await callback.message.answer(text, reply_markup=keyboard)
+
+
 def back_button(lang: str, to: str = "menu_back") -> InlineKeyboardButton:
     return InlineKeyboardButton(text=t(lang, "btn_back"), callback_data=to)
 
@@ -73,7 +85,7 @@ async def build_orders_text(lang: str, user_id: int) -> str:
 @router.callback_query(F.data == "menu_premium")
 async def show_premium(callback: CallbackQuery):
     lang = await db.get_lang(callback.from_user.id)
-    await callback.message.edit_text(t(lang, "choose_premium"), reply_markup=premium_keyboard(lang))
+    await safe_edit(callback, t(lang, "choose_premium"), premium_keyboard(lang))
     await callback.answer()
 
 
@@ -92,7 +104,7 @@ async def show_premium_type_choice(callback: CallbackQuery):
         text += t(lang, "premium_choice_gift_desc") + t(lang, "premium_choice_self_desc")
     else:
         text += t(lang, "premium_choice_buy_desc")
-    await callback.message.edit_text(text, reply_markup=premium_type_keyboard(lang, plan_id))
+    await safe_edit(callback, text, premium_type_keyboard(lang, plan_id))
     await callback.answer()
 
 
@@ -108,7 +120,7 @@ async def show_stars(callback: CallbackQuery, bot: Bot):
 async def show_orders(callback: CallbackQuery):
     lang = await db.get_lang(callback.from_user.id)
     text = await build_orders_text(lang, callback.from_user.id)
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=[[back_button(lang)]]))
+    await safe_edit(callback, text, InlineKeyboardMarkup(inline_keyboard=[[back_button(lang)]]))
     await callback.answer()
 
 
