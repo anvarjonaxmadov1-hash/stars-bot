@@ -1,7 +1,7 @@
 from aiogram import Router, F, Bot
 from aiogram.types import (
     Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton,
-    InlineQuery, InlineQueryResultArticle, InputTextMessageContent,
+    InlineQuery, InlineQueryResultArticle, InputTextMessageContent, FSInputFile,
 )
 from aiogram.filters import CommandStart, Command, CommandObject
 
@@ -10,6 +10,13 @@ from locales import t
 from middleware import is_subscribed
 
 router = Router()
+
+BANNER_PATH = "assets/banner.png"
+PROFILE_BANNER_PATH = "assets/profile_banner.png"
+
+CHANNEL_URL = "https://t.me/premium_channeluz"
+REVIEWS_URL = "https://t.me/uz7_reviews"
+SUPPORT_URL = "https://t.me/uz7sp_bot"
 
 
 def lang_keyboard() -> InlineKeyboardMarkup:
@@ -37,11 +44,33 @@ def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=t(lang, "btn_premium"), callback_data="menu_premium")],
         [InlineKeyboardButton(text=t(lang, "btn_stars"), callback_data="menu_stars")],
         [InlineKeyboardButton(text=t(lang, "btn_invite"), callback_data="menu_invite")],
+        [InlineKeyboardButton(text=t(lang, "btn_profile"), callback_data="menu_profile")],
+        [
+            InlineKeyboardButton(text=t(lang, "btn_channel"), url=CHANNEL_URL),
+            InlineKeyboardButton(text=t(lang, "btn_reviews"), url=REVIEWS_URL),
+        ],
+        [InlineKeyboardButton(text=t(lang, "btn_support"), url=SUPPORT_URL)],
     ])
 
 
+def profile_back_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")],
+    ])
+
+
+async def send_main_menu(bot: Bot, chat_id: int, lang: str, name: str):
+    caption = t(lang, "welcome", name=name) + "\n\n" + t(lang, "main_menu")
+    try:
+        photo = FSInputFile(BANNER_PATH)
+        await bot.send_photo(chat_id, photo, caption=caption, reply_markup=main_menu_keyboard(lang))
+    except Exception:
+        # Rasm topilmasa, oddiy matn bilan davom etadi
+        await bot.send_message(chat_id, caption, reply_markup=main_menu_keyboard(lang))
+
+
 @router.message(CommandStart())
-async def cmd_start(message: Message, command: CommandObject):
+async def cmd_start(message: Message, command: CommandObject, bot: Bot):
     referred_by = None
     if command.args and command.args.startswith("ref_"):
         try:
@@ -82,10 +111,36 @@ async def menu_invite(callback: CallbackQuery, bot: Bot):
         [InlineKeyboardButton(text=t(lang, "btn_share"), switch_inline_query="invite")],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")],
     ])
-    await callback.message.edit_text(
-        t(lang, "invite_text", link=link, count=count, balance=f"{balance:,}".replace(",", " ")),
-        reply_markup=keyboard,
+    text = t(lang, "invite_text", link=link, count=count, balance=f"{balance:,}".replace(",", " "))
+    try:
+        await callback.message.edit_caption(caption=text, reply_markup=keyboard)
+    except Exception:
+        await callback.message.answer(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu_profile")
+async def menu_profile(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
+    user_id = callback.from_user.id
+    username = callback.from_user.username or t(lang, "profile_no_username")
+    full_name = callback.from_user.full_name or "-"
+    balance = await db.get_balance(user_id)
+    referrals = await db.count_referrals(user_id)
+    orders_count = await db.count_orders(user_id)
+
+    text = t(
+        lang, "profile_text",
+        name=full_name, username=username, user_id=user_id,
+        balance=f"{balance:,}".replace(",", " "),
+        referrals=referrals, orders=orders_count,
     )
+    try:
+        photo = FSInputFile(PROFILE_BANNER_PATH)
+        await callback.message.delete()
+        await callback.message.answer_photo(photo, caption=text, reply_markup=profile_back_keyboard(lang))
+    except Exception:
+        await callback.message.answer(text, reply_markup=profile_back_keyboard(lang))
     await callback.answer()
 
 
@@ -106,12 +161,12 @@ async def handle_inline_query(inline_query: InlineQuery, bot: Bot):
 
 
 @router.callback_query(F.data.startswith("lang_"))
-async def set_language(callback: CallbackQuery):
+async def set_language(callback: CallbackQuery, bot: Bot):
     lang = callback.data.split("_")[1]
     await db.set_lang(callback.from_user.id, lang)
     name = callback.from_user.first_name or "friend"
-    await callback.message.edit_text(t(lang, "welcome", name=name))
-    await callback.message.answer(t(lang, "main_menu"), reply_markup=main_menu_keyboard(lang))
+    await callback.message.delete()
+    await send_main_menu(bot, callback.from_user.id, lang, name)
     await callback.answer()
 
 
@@ -122,7 +177,12 @@ async def change_language(callback: CallbackQuery):
 
 
 @router.callback_query(F.data == "menu_back")
-async def back_to_menu(callback: CallbackQuery):
+async def back_to_menu(callback: CallbackQuery, bot: Bot):
     lang = await db.get_lang(callback.from_user.id)
-    await callback.message.edit_text(t(lang, "main_menu"), reply_markup=main_menu_keyboard(lang))
+    name = callback.from_user.first_name or "friend"
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await send_main_menu(bot, callback.from_user.id, lang, name)
     await callback.answer()
