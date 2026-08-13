@@ -22,6 +22,18 @@ router = Router()
 PENDING_SCREENSHOT: dict[int, int] = {}
 
 
+async def safe_edit(callback: CallbackQuery, text: str, keyboard: InlineKeyboardMarkup | None = None):
+    """Xabarni matn bilan yangilaydi. Agar xabar rasm (banner) bo'lsa, o'chirib, yangi matn xabar yuboradi."""
+    try:
+        await callback.message.edit_text(text, reply_markup=keyboard)
+    except Exception:
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        await callback.message.answer(text, reply_markup=keyboard)
+
+
 def find_item(callback_data: str):
     """gprem_xxx / sprem_xxx / buy_star_xxx dan mahsulotni topadi.
     Premium uchun gift/self turi item nomiga qo'shiladi (admin uchun)."""
@@ -119,7 +131,7 @@ async def choose_payment_method(callback: CallbackQuery):
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu_back")])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await callback.message.edit_text(notice + t(lang, "choose_payment"), reply_markup=keyboard)
+    await safe_edit(callback, notice + t(lang, "choose_payment"), keyboard)
     await callback.answer()
 
 
@@ -140,7 +152,7 @@ async def pay_with_card(callback: CallbackQuery, bot: Bot):
 
     if final_price <= 0:
         await db.update_order_status(order_id, "paid")
-        await callback.message.edit_text(t(lang, "fully_covered", order_id=order_id))
+        await safe_edit(callback, t(lang, "fully_covered", order_id=order_id), None)
         await notify_admin_new_order(bot, order_id, user_id, callback.from_user.username, item_name, price, "Karta (balans bilan to'liq qoplandi)")
         await credit_referral_bonus(bot, order_id, user_id)
     else:
@@ -149,7 +161,7 @@ async def pay_with_card(callback: CallbackQuery, bot: Bot):
                  card=PAYMENT_CARD_NUMBER, owner=PAYMENT_CARD_OWNER)
         if discount > 0:
             text += t(lang, "discount_applied", discount=f"{discount:,}".replace(",", " "))
-        await callback.message.edit_text(text)
+        await safe_edit(callback, text, None)
     await callback.answer()
 
 
@@ -170,7 +182,7 @@ async def pay_with_foreign_card(callback: CallbackQuery, bot: Bot):
 
     if final_price_som <= 0:
         await db.update_order_status(order_id, "paid")
-        await callback.message.edit_text(t(lang, "fully_covered", order_id=order_id))
+        await safe_edit(callback, t(lang, "fully_covered", order_id=order_id))
         await notify_admin_new_order(bot, order_id, user_id, callback.from_user.username, item_name, price_som, "Visa/Mastercard (balans bilan to'liq qoplandi)")
         await credit_referral_bonus(bot, order_id, user_id)
     else:
@@ -180,7 +192,7 @@ async def pay_with_foreign_card(callback: CallbackQuery, bot: Bot):
                  visa=FOREIGN_CARD_VISA, mastercard=FOREIGN_CARD_MASTERCARD, owner=FOREIGN_CARD_OWNER)
         if discount > 0:
             text += t(lang, "discount_applied", discount=f"{discount:,}".replace(",", " "))
-        await callback.message.edit_text(text)
+        await safe_edit(callback, text)
     await callback.answer()
 
 
