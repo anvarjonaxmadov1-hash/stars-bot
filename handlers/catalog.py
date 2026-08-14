@@ -134,7 +134,10 @@ def premium_type_keyboard(
 
     return InlineKeyboardMarkup(
         inline_keyboard=rows
-    )def stars_keyboard(lang: str):
+    )
+
+
+def stars_keyboard(lang: str):
 
     items = [
         InlineKeyboardButton(
@@ -346,7 +349,10 @@ async def show_premium_type_choice(
     )
 
 
-    await callback.answer()@router.callback_query(F.data == "menu_orders")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu_orders")
 async def show_orders(callback: CallbackQuery):
 
     lang = await db.get_lang(
@@ -453,4 +459,4 @@ async def cmd_language(message: Message):
     await message.answer(
         t("uz", "choose_lang"),
         reply_markup=lang_keyboard()
-        )
+    )
