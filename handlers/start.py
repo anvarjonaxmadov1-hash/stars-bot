@@ -68,7 +68,10 @@ async def send_main_menu(bot: Bot, chat_id: int, lang: str, name: str):
             chat_id,
             caption,
             reply_markup=main_menu_keyboard(lang)
-)@router.callback_query(F.data == "check_sub")
+        )
+
+
+@router.callback_query(F.data == "check_sub")
 async def check_sub_callback(callback: CallbackQuery, bot: Bot):
     lang = await db.get_lang(callback.from_user.id)
 
