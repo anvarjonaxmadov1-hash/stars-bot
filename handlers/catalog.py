@@ -225,19 +225,28 @@ async def show_premium(callback: CallbackQuery):
         pass
 
 
-    photo = FSInputFile(
-        PREMIUM_BANNER
-    )
+    try:
+        photo = FSInputFile(
+            PREMIUM_BANNER
+        )
 
+        await callback.message.answer_photo(
+            photo,
+            caption=t(
+                lang,
+                "choose_premium"
+            ),
+            reply_markup=premium_keyboard(lang)
+        )
 
-    await callback.message.answer_photo(
-        photo,
-        caption=t(
-            lang,
-            "choose_premium"
-        ),
-        reply_markup=premium_keyboard(lang)
-    )
+    except Exception:
+        await callback.message.answer(
+            t(
+                lang,
+                "choose_premium"
+            ),
+            reply_markup=premium_keyboard(lang)
+        )
 
 
     await callback.answer()
@@ -258,19 +267,28 @@ async def show_stars(callback: CallbackQuery):
         pass
 
 
-    photo = FSInputFile(
-        STARS_BANNER
-    )
+    try:
+        photo = FSInputFile(
+            STARS_BANNER
+        )
 
+        await callback.message.answer_photo(
+            photo,
+            caption=t(
+                lang,
+                "choose_stars"
+            ),
+            reply_markup=stars_keyboard(lang)
+        )
 
-    await callback.message.answer_photo(
-        photo,
-        caption=t(
-            lang,
-            "choose_stars"
-        ),
-        reply_markup=stars_keyboard(lang)
-    )
+    except Exception:
+        await callback.message.answer(
+            t(
+                lang,
+                "choose_stars"
+            ),
+            reply_markup=stars_keyboard(lang)
+        )
 
 
     await callback.answer()
@@ -390,19 +408,28 @@ async def cmd_premium(message: Message):
     )
 
 
-    photo = FSInputFile(
-        PREMIUM_BANNER
-    )
+    try:
+        photo = FSInputFile(
+            PREMIUM_BANNER
+        )
 
+        await message.answer_photo(
+            photo,
+            caption=t(
+                lang,
+                "choose_premium"
+            ),
+            reply_markup=premium_keyboard(lang)
+        )
 
-    await message.answer_photo(
-        photo,
-        caption=t(
-            lang,
-            "choose_premium"
-        ),
-        reply_markup=premium_keyboard(lang)
-    )
+    except Exception:
+        await message.answer(
+            t(
+                lang,
+                "choose_premium"
+            ),
+            reply_markup=premium_keyboard(lang)
+        )
 
 
 
@@ -414,19 +441,28 @@ async def cmd_stars(message: Message):
     )
 
 
-    photo = FSInputFile(
-        STARS_BANNER
-    )
+    try:
+        photo = FSInputFile(
+            STARS_BANNER
+        )
 
+        await message.answer_photo(
+            photo,
+            caption=t(
+                lang,
+                "choose_stars"
+            ),
+            reply_markup=stars_keyboard(lang)
+        )
 
-    await message.answer_photo(
-        photo,
-        caption=t(
-            lang,
-            "choose_stars"
-        ),
-        reply_markup=stars_keyboard(lang)
-    )
+    except Exception:
+        await message.answer(
+            t(
+                lang,
+                "choose_stars"
+            ),
+            reply_markup=stars_keyboard(lang)
+        )
 
 
 
@@ -459,4 +495,4 @@ async def cmd_language(message: Message):
     await message.answer(
         t("uz", "choose_lang"),
         reply_markup=lang_keyboard()
-    )
+        )
